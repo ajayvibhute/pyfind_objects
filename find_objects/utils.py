@@ -1,3 +1,5 @@
+#Contains all the utility classes, methods required to perform object search
+
 from astropy.wcs import WCS
 
 class utils: 
@@ -7,6 +9,9 @@ class utils:
     Methods:
     init_wcs :  Initializes the world co-ordinate system.
     """
+
+
+
     def init_wcs(self,img_header,dropaxis=False):
         """
         Initializes the world co-ordinate system (wcs). 
@@ -27,9 +32,20 @@ class utils:
             Returns object of initialized WCS
 
         """
+
+        #create object of WCS with image_header
         w=WCS(img_header)
+
+        #The VLASS data is four dimensional and two dimensions of the WCS needs to be
+        #removed to perform pixel to sky conversion.
+        #reference: https://github.com/aplpy/aplpy/issues/423
+        
         if dropaxis:
+        
+            #remove dimension from WCS
             w=w.dropaxis(2)
             w=w.dropaxis(2)    
+
+        #returning object of the wcs
         return w
 
