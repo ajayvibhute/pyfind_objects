@@ -1,6 +1,7 @@
 #Contains defination for the cluster and other methods required to
 #process the cluster
 from astropy.coordinates import SkyCoord
+import math
 class cluster:
     """
         Class hold information about the cluster and provides several methods
@@ -22,6 +23,7 @@ class cluster:
         self.x_pixels=[]
         self.y_pixels=[]
         self.pixel_fluxs=[]
+        self.agg_flux=0
 
     def init_center_wcs(self):
         """
@@ -128,6 +130,7 @@ class cluster:
         #emission of the source and will come at the cost of computing time. 
         #for the current data set (VLASS) computing distance from the center lists all the 
         #sources in the FOV
+        """
         if all_pix:
             #compute distance from all points in the 
             #cluster and return minimum distance
@@ -145,4 +148,7 @@ class cluster:
             c2 = SkyCoord(self.w.pixel_to_world(x,y))
             d=self.c1.separation(c2)
             return d.arcmin
-       
+        """
+        return math.dist([self.center_x,self.center_y],[x,y])
+
+        
