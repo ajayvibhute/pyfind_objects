@@ -227,8 +227,8 @@ class Image:
         plt.imshow(self.img_data,interpolation="nearest",vmin=np.min(self.img_data),vmax=np.max(self.img_data),origin="lower",cmap="gray")
         
         #plot all clusters on top of the image
-        for c in self.cluster_list:
-            plt.plot(c.y_pixels,c.x_pixels,markersize=10)
+        #for c in self.cluster_list:
+        #    plt.plot(c.y_pixels,c.x_pixels,markersize=10)
         plt.show()
         
 
@@ -246,20 +246,20 @@ class Image:
 
             self.cluster_list.append(c)
        
-        """
         #update center
         for c in self.cluster_list:
             maxind=np.where(c.pixel_fluxs==np.max(c.pixel_fluxs))[0][0]
             c.center_x=c.x_pixels[maxind]
             c.center_y=c.y_pixels[maxind]
             c.center_flux=c.pixel_fluxs[maxind]
-        """
+            #c.center_flux=np.mean(c.pixel_fluxs)
 class Sources:
     def __init__(self):
         self.center_x=[]
         self.center_y=[]
         self.center_flux=[]
         self.freq=[]
+
 
 
 class ImageFile:
@@ -338,7 +338,35 @@ class ImageFile:
 
         #sort the images using frequency as a key
         #self.images.sort(key=lambda x: x.img_freq)
-            
+        
+    def cleanup_clusters(self):  
+        #ideally check the source intensity above rms
+        #implement if time permits
+        pts_count=[0]*self.images[0].numclusters
+        local_threash=5
+        for j in np.arange(0,self.images[0].numclusters):
+            for i in self.images:
+                if(i.cluster_list[j].numpts<5):
+                    pts_count[j]=pts_count[j]+1
+        removed_count=0
+        for j in np.arange(0,len(pts_count)):
+            if pts_count[j]>8:
+                #delete cluster
+                for i in self.images:
+                    i.cluster_list.pop(j-removed_count)
+                    i.numclusters-=1
+                removed_count+=1
+                
+
+
+    def plot_spectra(self):
+        """
+        Plots spectrum (intensity as a function of frequency) of all the detected sources
+        """
+        for i in np.arange(0,len(self.sourcelist)):
+            print("source Id:",i,self.sourcelist[i].center_x,self.sourcelist[i].center_y,self.sourcelist[i].center_flux)
+            plt.plot(self.sourcelist[i].freq, self.sourcelist[i].center_flux)
+            plt.show()
 
 
     def process(self):
@@ -367,29 +395,38 @@ class ImageFile:
         print("Plot--- %s seconds ---" % (time.time()-start_time ))
 
         start_time = time.time()
-        print("Plot images")
-        #plot images
-        #self.images[0].plot_image()
-        print("Plot--- %s seconds ---" % (time.time()-start_time ))
-
-        start_time = time.time()
         #copy clusters
         for i in np.arange(1,len(self.images)):
             self.images[i].copy_clusters(self.images[0])
+        
+        #this is required to process only this data-set
+        self.cleanup_clusters()
 
+
+
+        #create instance of source class and copy all the sources in it
         for i in np.arange(0,len(self.images[0].cluster_list)):
             s=Sources()
             self.sourcelist.append(s)
-
+        #copying detected source information 
+        #in the source clsuter
         for i in np.arange(0,len(self.images)):
             for j in np.arange(0,len(self.images[i].cluster_list)):
                 self.sourcelist[j].center_x.append(self.images[i].cluster_list[j].center_x)    
                 self.sourcelist[j].center_y.append(self.images[i].cluster_list[j].center_y)    
                 self.sourcelist[j].center_flux.append(self.images[i].cluster_list[j].center_flux)    
                 self.sourcelist[j].freq.append(self.images[i].img_freq)    
-
         print("Copy clusters--- %s seconds ---" % (time.time()-start_time ))
 
+
+        start_time = time.time()
+        print("Plot images")
+        #plot images
+        #for i in self.images:
+         #   i.plot_image()
+        #self.images[0].plot_image()
+        print("Plot--- %s seconds ---" % (time.time()-start_time ))
+    
 if __name__ == "__main__":
 
     
@@ -405,6 +442,7 @@ if __name__ == "__main__":
 
     start_time = time.time()
     imgf.process()
+    imgf.plot_spectra()
     print("Process--- %s seconds ---" % (time.time()-start_time ))
     
     """
