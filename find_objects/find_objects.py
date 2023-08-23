@@ -9,7 +9,8 @@ import math
 import time
 import os
 
-from . import image as image
+#from . import image as image
+import image as image
 
 class Sources:
     def __init__(self):
@@ -19,7 +20,8 @@ class Sources:
         self.freq=[]
         self.norm=None
         self.spec_ind=None
-
+        self.ra=[]
+        self.dec=[]
 
 class ImageFile:
     """
@@ -128,7 +130,7 @@ class ImageFile:
             plt.plot(self.sourcelist[i].freq, self.sourcelist[i].center_flux)
             plt.show()
 
-    def save_source_catlog(self,delim=",",outfile="source_catalog.csv",overwrite=True):
+    def save_source_catalog(self,delim=",",outfile="source_catalog.csv",overwrite=True):
         """
         Saves source catalog
 
@@ -157,12 +159,14 @@ class ImageFile:
 
         #create a file pointer    
         f=open(outfile,mode)
+        f.write("SourceId,RA,DEC,Flux\n")
         #reformat the output
         #iterate over all the source
         for i in np.arange(0,len(self.sourcelist)):
-            
             #write source information
-            f.write(str(i)+delim+str(self.sourcelist[i].center_x)+delim+str(self.sourcelist[i].center_y)+delim+str(self.sourcelist[i].center_flux)+"\n")
+            #f.write(str(i)+delim+str(self.sourcelist[i].center_x)+delim+str(self.sourcelist[i].center_y)+delim+str(self.sourcelist[i].center_flux)+"\n")
+            #ideally should be the pixel repeated maximum number of times
+            f.write(str(i)+delim+str(np.mean(self.sourcelist[i].ra))+delim+str(np.mean(self.sourcelist[i].dec))+delim+str(np.mean(self.sourcelist[i].center_flux))+"\n")
         #close the file descriptor
         f.close()
     
@@ -196,7 +200,6 @@ class ImageFile:
                 norm, spec_ind = curve_fit(self.linear_func, log_xpos, log_ypos)[0]    
                 s.norm=norm
                 s.spec_ind=spec_ind
-                print(norm,spec_ind)
             else:
                 print("flux and frequency length do no match")
 
@@ -233,8 +236,6 @@ class ImageFile:
         #this is required to process only this data-set
         self.cleanup_clusters()
 
-
-
         #create instance of source class and copy all the sources in it
         for i in np.arange(0,len(self.images[0].cluster_list)):
             s=Sources()
@@ -243,10 +244,17 @@ class ImageFile:
         #in the source clsuter
         for i in np.arange(0,len(self.images)):
             for j in np.arange(0,len(self.images[i].cluster_list)):
-                self.sourcelist[j].center_x.append(self.images[i].cluster_list[j].center_x)    
-                self.sourcelist[j].center_y.append(self.images[i].cluster_list[j].center_y)    
-                self.sourcelist[j].center_flux.append(self.images[i].cluster_list[j].center_flux)    
-                self.sourcelist[j].freq.append(self.images[i].img_freq)    
+
+                if self.images[i].cluster_list[j].numpts != 0:
+
+                    self.sourcelist[j].center_x.append(self.images[i].cluster_list[j].center_x)    
+                    self.sourcelist[j].center_y.append(self.images[i].cluster_list[j].center_y)    
+                    self.sourcelist[j].center_flux.append(self.images[i].cluster_list[j].center_flux)    
+                    self.sourcelist[j].freq.append(self.images[i].img_freq)    
+                    self.sourcelist[j].ra.append(self.images[i].cluster_list[j].ra)    
+                    self.sourcelist[j].dec.append(self.images[i].cluster_list[j].dec)    
+
+
         print("Copy clusters--- %s seconds ---" % (time.time()-start_time ))
 
     def plot_image(self,img_index=0):
@@ -277,6 +285,7 @@ if __name__ == "__main__":
 
     
     infile="/Users/avibhute/NRAO/pyfind_objects/find_objects/input.txt"
+
     imgf=ImageFile()
 
     start_time = time.time()
@@ -289,8 +298,9 @@ if __name__ == "__main__":
     start_time = time.time()
     imgf.process()
     #imgf.plot_spectra()
-    #imgf.save_source_catlog()
+
     imgf.compute_spectral_index()
+    imgf.save_source_catalog()
     imgf.plot_image()
     print("Process--- %s seconds ---" % (time.time()-start_time ))
     
