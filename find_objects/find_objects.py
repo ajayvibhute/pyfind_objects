@@ -159,14 +159,14 @@ class ImageFile:
 
         #create a file pointer    
         f=open(outfile,mode)
-        f.write("SourceId,RA,DEC,Flux\n")
+        f.write("SourceId,RA,DEC,Flux,SpectralIndex\n")
         #reformat the output
         #iterate over all the source
         for i in np.arange(0,len(self.sourcelist)):
             #write source information
             #f.write(str(i)+delim+str(self.sourcelist[i].center_x)+delim+str(self.sourcelist[i].center_y)+delim+str(self.sourcelist[i].center_flux)+"\n")
             #ideally should be the pixel repeated maximum number of times
-            f.write(str(i)+delim+str(np.mean(self.sourcelist[i].ra))+delim+str(np.mean(self.sourcelist[i].dec))+delim+str(np.mean(self.sourcelist[i].center_flux))+"\n")
+            f.write(str(i)+delim+str(np.mean(self.sourcelist[i].ra))+delim+str(np.mean(self.sourcelist[i].dec))+delim+str(np.mean(self.sourcelist[i].center_flux))+delim+str(self.sourcelist[i].spec_ind)+"\n")
         #close the file descriptor
         f.close()
     
