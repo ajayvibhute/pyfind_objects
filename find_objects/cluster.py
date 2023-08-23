@@ -24,6 +24,9 @@ class cluster:
         self.y_pixels=[]
         self.pixel_fluxs=[]
         self.agg_flux=0
+        self.ra=None
+        self.dec=None
+        self.w=None
 
     def init_center_wcs(self):
         """
@@ -31,7 +34,10 @@ class cluster:
         """
         #generate instance of the Skycoord for the center of 
         #cluster. This is used to compute distance from other sky pixels
-        self.c1 = SkyCoord(self.w.pixel_to_world(self.center_x,self.center_y))
+        cnt=self.w.pixel_to_world(self.center_x,self.center_y)
+        self.c1 = SkyCoord(cnt)
+        self.ra=cnt.ra.value
+        self.dec=cnt.ra.value
 
     def create_cluster(self,x,y,flux,w):
         """
@@ -151,4 +157,3 @@ class cluster:
         """
         return math.dist([self.center_x,self.center_y],[x,y])
 
-        
