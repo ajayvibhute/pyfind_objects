@@ -7,6 +7,8 @@ import math
 import time
 import cluster as cl
 import utils as ut
+import os
+from scipy.optimize import curve_fit
 
 
 class Image:
@@ -259,7 +261,8 @@ class Sources:
         self.center_y=[]
         self.center_flux=[]
         self.freq=[]
-
+        self.norm=None
+        self.spec_ind=None
 
 
 class ImageFile:
@@ -343,6 +346,8 @@ class ImageFile:
         #ideally check the source intensity above rms
         #implement if time permits
         pts_count=[0]*self.images[0].numclusters
+
+        #add a flag to decide local threashold based on distance type
         local_threash=5
         for j in np.arange(0,self.images[0].numclusters):
             for i in self.images:
@@ -367,6 +372,68 @@ class ImageFile:
             print("source Id:",i,self.sourcelist[i].center_x,self.sourcelist[i].center_y,self.sourcelist[i].center_flux)
             plt.plot(self.sourcelist[i].freq, self.sourcelist[i].center_flux)
             plt.show()
+
+    def save_source_catlog(self,delim=",",outfile="source_catalog.csv",overwrite=True):
+        """
+        Saves source catalog
+
+        Parameters:
+        ----------
+
+        delim   :   str, optional, default is ","
+                Delimiter to seperate the fields
+
+        outfile : str, optional, default is source_catalog.csv
+                Name of the output file
+
+        overwrite   : bool, optional default is True
+                    If true, overwrites the file otherwise appends to existing file
+        """
+
+        if overwrite:
+            mode="w"
+            #delete file if flag is set to overwrite
+            if os.path.exists(outfile):
+                os.remove(outfile)
+
+        else:
+            #open file in append mode
+            mode="a"
+
+        #create a file pointer    
+        f=open(outfile,mode)
+        #reformat the output
+        #iterate over all the source
+        for i in np.arange(0,len(self.sourcelist)):
+            
+            #write source information
+            f.write(str(i)+delim+str(self.sourcelist[i].center_x)+delim+str(self.sourcelist[i].center_y)+delim+str(self.sourcelist[i].center_flux)+"\n")
+        #close the file descriptor
+        f.close()
+    
+    
+    def linear_func(self,x, a, b):
+        """
+        Function used to compute spectral index
+        """
+        return a+x*b
+
+
+    def compute_spectral_index(self):
+        """
+        computes the spectral index for the image
+        """
+        for s in self.sourcelist:
+            log_xpos=np.log10(s.freq)
+            log_ypos=np.log10(s.center_flux)
+        
+            if len(log_xpos)==len(log_ypos):
+                norm, spec_ind = curve_fit(self.linear_func, log_xpos, log_ypos)[0]    
+                s.norm=norm
+                s.spec_ind=spec_ind
+                print(norm,spec_ind)
+            else:
+                print("flux and frequency length do no match")
 
 
     def process(self):
@@ -442,7 +509,9 @@ if __name__ == "__main__":
 
     start_time = time.time()
     imgf.process()
-    imgf.plot_spectra()
+    #imgf.plot_spectra()
+    #imgf.save_source_catlog()
+    imgf.compute_spectral_index()
     print("Process--- %s seconds ---" % (time.time()-start_time ))
     
     """
