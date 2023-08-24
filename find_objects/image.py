@@ -23,7 +23,7 @@ class Image:
     to find extended sources
     plot_image: Plots the image and clusters on it.
     """
-    def __init__(self,imgfile,rmsfile,dist_threash=0.7):
+    def __init__(self,imgfile,rmsfile,dist_type="euclidean",dist_threash=0.7):
         """
         Initilizes the cluster object
         """
@@ -33,7 +33,7 @@ class Image:
         
         self.infile = imgfile
         self.rmsfile = rmsfile
-        self.dist_threash = 40 #dist_threash
+        self.dist_threash = 0.7 #dist_threash
         self.img_hdu = None #hdu of fits image file
         self.img_data = None #image data
         self.img_header = None #fits image header
@@ -42,7 +42,14 @@ class Image:
         self.cluster_list = [] #list of clusters   
         self.numclusters = 0  #number of clusters
         self.img_freq    = None 
-
+        self.dist_type  = dist_type
+        #to do: check if dist_threash is passed
+        if self.dist_type == "euclidean":   
+                self.dist_threash = 40
+        else:
+            
+            self.dist_type=dist_type
+            self.dist_threash=0.7
 
 
     def read_input(self,hdunum=0): 
@@ -126,7 +133,7 @@ class Image:
                 #pixel from the center is less than the pre-set threashold. 
                 isExistingCluster=False
                 for c in self.cluster_list:
-                    if(c.compute_distance(self.xcoor[i],self.ycoor[i])<self.dist_threash):
+                    if(c.compute_distance(self.xcoor[i],self.ycoor[i],self.dist_type) < self.dist_threash):
                         c.add_pixel(self.xcoor[i],self.ycoor[i],self.img_data[self.xcoor[i]][self.ycoor[i]])
                         isExistingCluster=True
                         break
@@ -186,7 +193,7 @@ class Image:
                         #check if cluster is already merged with other cluster
                         if j not in pop_clusters:
                             #compute distance of between two clusters
-                            d=self.cluster_list[i].compute_distance(self.cluster_list[j].center_x,self.cluster_list[j].center_y)
+                            d=self.cluster_list[i].compute_distance(self.cluster_list[j].center_x, self.cluster_list[j].center_y, self.dist_type)
                             
                             #if distance is less than threashold, merge the clusters 
                             #and add it's entry to the list of clusters tobe popped
@@ -225,17 +232,15 @@ class Image:
 
 
         vmax=np.max(self.img_data)
-        #vmin=vmax/5
-        vmin=np.min(self.img_data)/10
+        vmin=np.min(self.img_data)
         
         #plot the image
-        #plt.imshow(self.img_data,interpolation="nearest",norm=LogNorm(vmax=vmax/5),origin="lower",cmap="gray")
-        plt.imshow(self.img_data,interpolation="nearest",origin="lower",cmap="gray")
+        plt.imshow(self.img_data,interpolation="nearest",origin="lower",cmap="gray",vmin=vmin,vmax=vmax)
         plt.title("Image with detected sources") 
         #plot all clusters on top of the image
         for c in self.cluster_list:
-            #plt.plot(c.center_y,c.center_x,'o',markersize=1,alpha=0.5)
-            plt.plot(c.y_pixels,c.x_pixels,'o',markersize=0.5,alpha=0.5)
+            #plt.plot(c.center_y,c.center_x,'o',markersize=2,alpha=0.5)
+            plt.plot(c.y_pixels,c.x_pixels,'o',markersize=1,alpha=0.5)
         plt.show()
         
 

@@ -33,6 +33,7 @@ class ImageFile:
         self.rmsfiles=[] #path for rms files
         self.images =[] #store images
         self.sourcelist=[]
+        self.dist_type="euclidean"
     """
     #accept input file while creating the source object
     def __init__(self,infile,delim=","):
@@ -93,7 +94,7 @@ class ImageFile:
         #iterating over all the input files and reading images
         #rms and frequency
         for ind in np.arange(0,len(self.imgfiles)):
-            i=image.Image(self.imgfiles[ind],self.rmsfiles[ind])
+            i=image.Image(self.imgfiles[ind],self.rmsfiles[ind],dist_type=self.dist_type)
             i.read_input() 
             self.images.append(i)
 
@@ -304,9 +305,9 @@ if __name__ == "__main__":
 
     imgf.compute_spectral_index()
     imgf.save_source_catalog()
-    #imgf.plot_image()
+    imgf.plot_image()
     
-    imgf.plot_spectra()
+    #imgf.plot_spectra()
     print("Process--- %s seconds ---" % (time.time()-start_time ))
     
     """

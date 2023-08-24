@@ -109,7 +109,7 @@ class cluster:
             self.center_y=y
             self.init_center_wcs()
              
-    def compute_distance(self,x,y,all_pix=False):
+    def compute_distance(self,x,y,dist_type="euclidean",all_pix=False):
         """
         computes distance of a pixel from the center
 
@@ -125,6 +125,8 @@ class cluster:
         all_pix : bool, default false
                 computes distance from all pixels and returns the minimum distance
 
+        dist_type   :   str, default euclidean
+                    type of the distance computed euclidean or celestial
         Returns:
         --------
         distance    : float
@@ -136,24 +138,25 @@ class cluster:
         #emission of the source and will come at the cost of computing time. 
         #for the current data set (VLASS) computing distance from the center lists all the 
         #sources in the FOV
-        """
-        if all_pix:
-            #compute distance from all points in the 
-            #cluster and return minimum distance
-            dmin=100;
-            c2 = SkyCoord(self.w.pixel_to_world(x,y))
-            for i in np.arange(0,len(self.x_pixels)):
-                c1=SkyCoord(self.w.pixel_to_world(self.x_pixels[i],self.y_pixels[i]))
-                d=self.c1.separation(c2)
+        if dist_type == "euclidean":
+            #to_do:add block to compute distance from all pixels
+            return math.dist([self.center_x,self.center_y],[x,y])
+        if dist_type == "celestial":
+            if all_pix:
+                #compute distance from all points in the 
+                #cluster and return minimum distance
+                dmin=100;
+                c2 = SkyCoord(self.w.pixel_to_world(x,y))
+                for i in np.arange(0,len(self.x_pixels)):
+                    c1=SkyCoord(self.w.pixel_to_world(self.x_pixels[i],self.y_pixels[i]))
+                    d=self.c1.separation(c2)
             
-                if d.arcmin<dmin:
-                    dmin=d.arcmin
-            return dmin
-        else:
-            #compute distance from centre
-            c2 = SkyCoord(self.w.pixel_to_world(x,y))
-            d=self.c1.separation(c2)
-            return d.arcmin
-        """
-        return math.dist([self.center_x,self.center_y],[x,y])
-
+                    if d.arcmin<dmin:
+                        dmin=d.arcmin
+                return dmin
+            else:
+                #compute distance from centre
+                c2 = SkyCoord(self.w.pixel_to_world(x,y))
+                d=self.c1.separation(c2)
+                return d.arcmin
+       
