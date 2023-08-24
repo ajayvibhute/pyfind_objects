@@ -2,12 +2,12 @@
 from astropy.io import fits
 import matplotlib.pyplot as plt
 import numpy as np
-#from . import utils as ut
-#from . import cluster as cl
+from . import utils as ut
+from . import cluster as cl
 
 
-import utils as ut
-import cluster as cl
+#import utils as ut
+#import cluster as cl
 
 class Image:
     """

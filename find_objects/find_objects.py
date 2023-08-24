@@ -9,8 +9,8 @@ import math
 import time
 import os
 
-#from . import image as image
-import image as image
+from . import image as image
+#import image as image
 
 class Sources:
     def __init__(self):
