@@ -73,7 +73,7 @@ By default, the image for the lowest frequency will be plotted. However, one can
 ```
 imgf.plot_image(img_index=1)
 ```
-The package also provides functionality to plot spectra (flux as a function of intensity) of all detected sources using 
+The package also provides functionality to plot spectra (flux as a function of frequency) of all detected sources using 
 
 ```
 imgf.plot_spectra()
