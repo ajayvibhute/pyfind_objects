@@ -109,11 +109,11 @@ class ImageFile:
         local_threash=5
         for j in np.arange(0,self.images[0].numclusters):
             for i in self.images:
-                if(i.cluster_list[j].numpts<5):
+                if(i.cluster_list[j].numpts<=8):
                     pts_count[j]=pts_count[j]+1
         removed_count=0
         for j in np.arange(0,len(pts_count)):
-            if pts_count[j]>8:
+            if pts_count[j]>=5:
                 #delete cluster
                 for i in self.images:
                     i.cluster_list.pop(j-removed_count)
@@ -126,8 +126,11 @@ class ImageFile:
         Plots spectrum (intensity as a function of frequency) of all the detected sources
         """
         for i in np.arange(0,len(self.sourcelist)):
-            #print("source Id:",i,self.sourcelist[i].center_x,self.sourcelist[i].center_y,self.sourcelist[i].center_flux)
-            plt.plot(self.sourcelist[i].freq, self.sourcelist[i].center_flux)
+            print( i, self.sourcelist[i].center_x,self.sourcelist[i].center_y,self.sourcelist[i].center_flux)
+            plt.title("Spectra for ({:.2f},{:.2f})".format(np.mean(self.sourcelist[i].ra),np.mean(self.sourcelist[i].dec)))
+            plt.xlabel("Frequency")
+            plt.ylabel("Flux in Jy")
+            plt.plot(self.sourcelist[i].freq, self.sourcelist[i].center_flux,"ro",markersize=2)
             plt.show()
 
     def save_source_catalog(self,delim=",",outfile="source_catalog.csv",overwrite=True):
@@ -297,11 +300,13 @@ if __name__ == "__main__":
 
     start_time = time.time()
     imgf.process()
-    #imgf.plot_spectra()
+
 
     imgf.compute_spectral_index()
     imgf.save_source_catalog()
-    imgf.plot_image()
+    #imgf.plot_image()
+    
+    imgf.plot_spectra()
     print("Process--- %s seconds ---" % (time.time()-start_time ))
     
     """
