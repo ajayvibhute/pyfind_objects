@@ -127,12 +127,27 @@ class ImageFile:
         Plots spectrum (intensity as a function of frequency) of all the detected sources
         """
         for i in np.arange(0,len(self.sourcelist)):
-            print( i, self.sourcelist[i].center_x,self.sourcelist[i].center_y,self.sourcelist[i].center_flux)
             plt.title("Spectra for ({:.2f},{:.2f})".format(np.mean(self.sourcelist[i].ra),np.mean(self.sourcelist[i].dec)))
             plt.xlabel("Frequency")
             plt.ylabel("Flux in Jy")
             plt.plot(self.sourcelist[i].freq, self.sourcelist[i].center_flux,"ro",markersize=2)
             plt.show()
+
+    def save_spectra(self):
+        """
+        saves source spectrum in the image file
+        
+        filename : default to spectra_<source_id>.png
+
+        """
+        #to do: Add a provision to provide file name as an input
+        for i in np.arange(0,len(self.sourcelist)):
+            plt.title("Spectra for ({:.2f},{:.2f})".format(np.mean(self.sourcelist[i].ra),np.mean(self.sourcelist[i].dec)))
+            plt.xlabel("Frequency")
+            plt.ylabel("Flux in Jy")
+            plt.plot(self.sourcelist[i].freq, self.sourcelist[i].center_flux,"ro",markersize=2)
+            plt.savefig("spectra_"+str(i)+".png")
+            plt.clf()
 
     def save_source_catalog(self,delim=",",outfile="source_catalog.csv",overwrite=True):
         """
@@ -168,9 +183,10 @@ class ImageFile:
         #iterate over all the source
         for i in np.arange(0,len(self.sourcelist)):
             #write source information
-            #f.write(str(i)+delim+str(self.sourcelist[i].center_x)+delim+str(self.sourcelist[i].center_y)+delim+str(self.sourcelist[i].center_flux)+"\n")
-            #ideally should be the pixel repeated maximum number of times
+            
+            #To do: ideally should be the pixel repeated maximum number of times
             f.write(str(i)+delim+str(np.mean(self.sourcelist[i].ra))+delim+str(np.mean(self.sourcelist[i].dec))+delim+str(np.mean(self.sourcelist[i].center_flux))+delim+str(self.sourcelist[i].spec_ind)+"\n")
+
         #close the file descriptor
         f.close()
     
@@ -308,6 +324,7 @@ if __name__ == "__main__":
     imgf.plot_image()
     
     #imgf.plot_spectra()
+    imgf.save_spectra() 
     print("Process--- %s seconds ---" % (time.time()-start_time ))
     
     """
