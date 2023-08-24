@@ -37,7 +37,7 @@ class cluster:
         cnt=self.w.pixel_to_world(self.center_x,self.center_y)
         self.c1 = SkyCoord(cnt)
         self.ra=cnt.ra.value
-        self.dec=cnt.ra.value
+        self.dec=cnt.dec.value
 
     def create_cluster(self,x,y,flux,w):
         """
