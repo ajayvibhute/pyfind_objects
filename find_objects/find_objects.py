@@ -94,12 +94,12 @@ class ImageFile:
         #iterating over all the input files and reading images
         #rms and frequency
         for ind in np.arange(0,len(self.imgfiles)):
-            i=image.Image(self.imgfiles[ind],self.rmsfiles[ind],dist_type=self.dist_type)
+            i=image.Image(self.imgfiles[ind],self.rmsfiles[ind],self.dist_type)
             i.read_input() 
             self.images.append(i)
 
         #sort the images using frequency as a key
-        #self.images.sort(key=lambda x: x.img_freq)
+        self.images.sort(key=lambda x: x.img_freq)
         
     def cleanup_clusters(self):  
         #ideally check the source intensity above rms
@@ -227,26 +227,22 @@ class ImageFile:
         """
         Process the images
         """
-        print("Init Images")
         self.init_images()
         
         start_time = time.time()
-        print("Flag Pixels")
         #flag the pixels
         self.images[0].flag_pixels()
-        print("flag pix--- %s seconds ---" % (time.time()-start_time ))
+        #print("flag pix--- %s seconds ---" % (time.time()-start_time ))
         
         start_time = time.time()
-        print("Perform clustering")
         #perform clsutering
         self.images[0].find_clusters()
-        print("clustering--- %s seconds ---" % (time.time()-start_time ))
+        #print("clustering--- %s seconds ---" % (time.time()-start_time ))
 
         start_time = time.time()
-        print("Merge clusters")
         #merge clusters
         self.images[0].merge_clusters()
-        print("Plot--- %s seconds ---" % (time.time()-start_time ))
+        #print("Plot--- %s seconds ---" % (time.time()-start_time ))
 
         start_time = time.time()
         #copy clusters
@@ -275,7 +271,6 @@ class ImageFile:
                     self.sourcelist[j].dec.append(self.images[i].cluster_list[j].dec)    
 
 
-        print("Copy clusters--- %s seconds ---" % (time.time()-start_time ))
 
     def plot_image(self,img_index=0):
         """
@@ -311,7 +306,6 @@ if __name__ == "__main__":
     start_time = time.time()
     #set input file
     imgf.input(infile)
-    print("Reading--- %s seconds ---" % (time.time()-start_time ))
 
     #process the image and find objects in it
 
@@ -325,7 +319,7 @@ if __name__ == "__main__":
     
     #imgf.plot_spectra()
     imgf.save_spectra() 
-    print("Process--- %s seconds ---" % (time.time()-start_time ))
+    #print("Process--- %s seconds ---" % (time.time()-start_time ))
     
     """
     VLASS1.2.se.T01t08.J033228-363000.06.2048.v1.spw2.I.iter3.image.pbcor.tt0.subim
