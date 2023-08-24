@@ -57,7 +57,7 @@ imgf.save_source_catlog()
 By default, the catalog is stored in the "source_catalog.csv" file. However, it can be changed by passing outfile argument to the function
 
 ```
-imgf.save_source_catlog(outfile="my_catalog.csv")
+imgf.save_source_catalog(outfile="my_catalog.csv")
 
 ```
 The method also takes an additional argument "overwrite", default True.
@@ -78,6 +78,11 @@ The package also provides functionality to plot spectra (flux as a function of i
 ```
 imgf.plot_spectra()
 
+```
+The spectrums can also be saved to an image file as 
+
+```
+imgf.save_spectra() 
 ```
 
 # Software Requirements:
