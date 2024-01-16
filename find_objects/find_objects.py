@@ -4,6 +4,7 @@
 from scipy.optimize import curve_fit
 from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
+from astropy.wcs import WCS
 import numpy as np
 import math
 import time
@@ -24,17 +25,123 @@ class Sources:
         self.spec_ind=None
         self.ra=[]
         self.dec=[]
-
+class Host:
+    """
+        class is defined to store the information about the host galaxy and radio
+        structures around it 
+    """
+    def __init__(self, center_ra, center_dec, center_x=None, center_y=None):
+        self.center_ra = center_ra
+        self.center_dec = center_dec 
+        self.center_x = center_x
+        self.center_y = center_y
+    
 class Find_sources:
     def __init__(self,infile):
         self.infile = infile
         self.bdsf_img = None
         self.param = None
+        self.param_temp = None
+        self.hosts = [] 
+
+    def _check_image_boundry(self, x, y, x0, y0, x1, y1):
+        """
+        Checks if a given galaxy co-ordinates are within the boundry 
+        of the image which is currently being processed.
+        """
+        #need to verify the condition with several fits images. 
+        #this is becuase how the co-ordinates changes and origin
+        if x1 < x and x < x0 and y0 < y and y < y1 :
+            return True
+        else:
+            return False
+
+
+    def init_hosts(self, host_catlog_file_name="optical_host_gal_catlog.txt"):
+        """
+        Function computes boundry of the fits image using 
+        NAXIS1, NAXIS2 and WCS. Creates a list of host galaxies within the 
+        boundry of the fits image. 
+        The input file/catalog should contain RA, DEC of the host galaxies in degree
+        For the boundry conditions, co-ordinates look like
+
+        (0, NAXIS2)---------(NAXIS1, NAXIS2)
+        |                   |
+        |                   |
+        |                   |
+        |                   |
+        (0, 0)--------------(NAXIS1, 0) 
+      """
+
+        w  = WCS(self.bdsf_img.header)
+        tmp = w.pixel_to_world(0, 0, 0, 0) #last two arguments are dummy and not used anywhere in the process
+        if tmp !=0:
+            x0 = tmp[0].ra.value
+            y0 = tmp[0].dec.value
+        else:
+            print("Error computing boundries\n Check the WCS of input image")
+
+        tmp = w.pixel_to_world(self.bdsf_img.header["NAXIS1"], self.bdsf_img.header["NAXIS2"], 0, 0) #last two arguments are dummy and not used anywhere in the process
+        if tmp !=0:
+            x1 = tmp[0].ra.value
+            y1 = tmp[0].dec.value
+        else:
+            print("Error computing boundries\n Check the WCS of input image")
+        cat_data = np.loadtxt(host_catlog_file_name)
+        gal_ra = cat_data[:,0]
+        gal_dec = cat_data[:,1]
+        for i in np.arange(0,len(gal_ra)):
+            #this can be done in a smarter way
+            if self._check_image_boundry(gal_ra[i], gal_dec[i], x0, y0, x1, y1):
+                gal_center=w.wcs_world2pix(gal_ra[i], gal_dec[i], 0, 0, 0)
+                self.hosts.append(Host(gal_ra[i],gal_dec[i],gal_center[0],gal_center[1]))
+                print(gal_ra[i], gal_dec[i])
 
     def process(self):
-        self.bdsf_img = bdsf.process_image(self.infile)
-        self.param_tmp=self.fit_ellipse(self.bdsf_img.islands[0].border[0],self.bdsf_img.islands[0].border[1])
-        self.param = self.cart_to_pol(self.param_tmp)
+        """
+        Function to process image in bdsf and return the processed
+        image with islands and other information
+        """
+        #self.bdsf_img = bdsf.process_image(self.infile)
+       
+       
+        if self.bdsf_img.resid_gaus_arr is None:
+            low = 1.1*abs(self.bdsf_img.min_value)
+        else:
+            low = np.max([1.1*abs(self.bdsf_img.min_value),1.1*abs(np.nanmin(self.bdsf_img.resid_gaus_arr))])
+
+
+
+
+
+        im=np.log10(self.bdsf_img.ch0_arr + low)
+        plt.imshow(im,  cmap="gray", interpolation='nearest')
+
+        for h in self.hosts:
+            print(h.center_ra, h.center_dec, h.center_x, h.center_y)
+            plt.scatter(h.center_y,h.center_x, s=6)
+        """
+        for ins in self.bdsf_img.islands:
+            #fitting ellipses to island
+            self.param_tmp=self.fit_ellipse(ins.border[0],ins.border[1])
+            if len(self.param_tmp) != 0:
+                self.param = self.cart_to_pol(self.param_tmp)
+                
+                if self.param!=-111 :
+                   
+                    x0, y0, ap, bp, e, phi = self.param
+                    ra = 0.0
+                    if  ap>=bp:
+                        ra = bp/ap
+                    else:
+                        ra = ap/bp
+
+                    if ra < 1:
+                        xt,yt=self.get_ellipse_pts(self.param)
+                        #plt.scatter(self.param[1],self.param[0],s=1)
+                        #plt.scatter(yt,xt,s=1)
+        """
+        plt.show()
 
     def plot(self):
         plt.imshow(self.bdsf_img.image_arr[0][0], origin="lower")
@@ -94,9 +201,10 @@ class Find_sources:
 
         den = b**2 - a*c
         if den > 0:
-            raise ValueError('coeffs do not represent an ellipse: b^2 - 4ac must'
-                            ' be negative!')
+            #raise ValueError('coeffs do not represent an ellipse: b^2 - 4ac must'
+            #                ' be negative!')
 
+            return -111
         # The location of the ellipse centre.
         x0, y0 = (c*d - b*f) / den, (a*f - b*d) / den
 
@@ -129,18 +237,21 @@ class Find_sources:
         if not width_gt_height:
             # Ensure that phi is the angle to rotate to the semi-major axis.
             phi += np.pi/2
-        phi = phi % np.pi
+        
+        if isinstance(phi, complex):
+            phi=phi.real % np.pi
+        else:
+            phi = phi % np.pi
 
         return x0, y0, ap, bp, e, phi
 
 
-    def get_ellipse_pts(self,params, npts=100, tmin=0, tmax=2*np.pi):
+    def get_ellipse_pts(self,params, npts=10, tmin=0, tmax=2*np.pi):
         """
         Return npts points on the ellipse described by the params = x0, y0, ap,
         bp, e, phi for values of the parametric variable t between tmin and tmax.
 
         """
-
         x0, y0, ap, bp, e, phi = params
         # A grid of the parametric variable, t.
         t = np.linspace(tmin, tmax, npts)
