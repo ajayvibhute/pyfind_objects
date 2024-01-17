@@ -11,9 +11,10 @@ import time
 import os
 
 from . import image as image
-#import image as image
+# import image as image
 
-import bdsf 
+import bdsf
+
 
 class Sources:
     def __init__(self):
@@ -25,44 +26,82 @@ class Sources:
         self.spec_ind=None
         self.ra=[]
         self.dec=[]
+
+
 class Host:
     """
         class is defined to store the information about the host galaxy and radio
-        structures around it 
+        structures around it.
     """
-    def __init__(self, center_ra, center_dec, center_x=None, center_y=None):
+    def __init__(self, center_ra, center_dec, center_x=None, center_y=None, host_id=None):
         self.center_ra = center_ra
-        self.center_dec = center_dec 
+        self.center_dec = center_dec
         self.center_x = center_x
         self.center_y = center_y
-    
+        self.host_id = host_id
+        self.ellipse_list = []
+
+
+class Ellipse:
+    """
+        Class to store information about the information about
+        the ellipses fitted and fitted params.
+    """
+    is_assigned = False
+    host_id = None
+
+    def __init__(self, param=None, island_id=None):
+        self. x0, self.y0, self.ap, self.bp, self.e, self.phi = param
+        self.island_id = island_id
+
+
 class Find_sources:
-    def __init__(self,infile):
+    def __init__(self, infile):
         self.infile = infile
         self.bdsf_img = None
         self.param = None
         self.param_temp = None
-        self.hosts = [] 
+        self.hosts = []
+        self.ellipse_list = []
+
+    def search(self):
+        """
+        checks distance of each hosts from all the islands. if the
+        distance is less than the threashold, the island will be
+        assigned to the host.
+        """
+        for h in self.hosts:
+            for e in self.ellipse_list:
+                if not e.is_assigned:
+                    if math.dist([h.center_x, h.center_y], [e.x0, e.y0]) < 70:
+                        h.ellipse_list.append(e)
+                        e.is_assigned = True
+
+    def process(self):
+        """
+        Function to process image in bdsf and return the processed
+        image with islands and other information
+        """
+        self.bdsf_img = bdsf.process_image(self.infile)
 
     def _check_image_boundry(self, x, y, x0, y0, x1, y1):
         """
         Checks if a given galaxy co-ordinates are within the boundry 
         of the image which is currently being processed.
         """
-        #need to verify the condition with several fits images. 
-        #this is becuase how the co-ordinates changes and origin
-        if x1 < x and x < x0 and y0 < y and y < y1 :
+        # need to verify the condition with several fits images.
+        # this is becuase how the co-ordinates changes and origin
+        if x1 < x and x < x0 and y0 < y and y < y1:
             return True
         else:
             return False
 
-
     def init_hosts(self, host_catlog_file_name="optical_host_gal_catlog.txt"):
         """
         Function computes boundry of the fits image using 
-        NAXIS1, NAXIS2 and WCS. Creates a list of host galaxies within the 
-        boundry of the fits image. 
-        The input file/catalog should contain RA, DEC of the host galaxies in degree
+        NAXIS1, NAXIS2 and WCS. Creates a list of host galaxies within the
+        boundry of the fits image.
+        The input file/catalog should contain RA, DEC of the host galaxies in degree.
         For the boundry conditions, co-ordinates look like
 
         (0, NAXIS2)---------(NAXIS1, NAXIS2)
@@ -73,46 +112,50 @@ class Find_sources:
         (0, 0)--------------(NAXIS1, 0) 
       """
 
-        w  = WCS(self.bdsf_img.header)
-        tmp = w.pixel_to_world(0, 0, 0, 0) #last two arguments are dummy and not used anywhere in the process
-        if tmp !=0:
+        w = WCS(self.bdsf_img.header)
+        tmp = w.pixel_to_world(0, 0, 0, 0)
+        # last two arguments are dummy and not used anywhere in the process
+        if tmp != 0:
             x0 = tmp[0].ra.value
             y0 = tmp[0].dec.value
         else:
             print("Error computing boundries\n Check the WCS of input image")
 
-        tmp = w.pixel_to_world(self.bdsf_img.header["NAXIS1"], self.bdsf_img.header["NAXIS2"], 0, 0) #last two arguments are dummy and not used anywhere in the process
-        if tmp !=0:
+        tmp = w.pixel_to_world(self.bdsf_img.header["NAXIS1"], self.bdsf_img.header["NAXIS2"], 0, 0)
+        # last two arguments are dummy and not used anywhere in the process
+        if tmp != 0:
             x1 = tmp[0].ra.value
             y1 = tmp[0].dec.value
         else:
             print("Error computing boundries\n Check the WCS of input image")
         cat_data = np.loadtxt(host_catlog_file_name)
-        gal_ra = cat_data[:,0]
-        gal_dec = cat_data[:,1]
-        for i in np.arange(0,len(gal_ra)):
-            #this can be done in a smarter way
+        gal_ra = cat_data[:, 0]
+        gal_dec = cat_data[:, 1]
+        for i in np.arange(0, len(gal_ra)):
+            # this can be done in a smarter way
             if self._check_image_boundry(gal_ra[i], gal_dec[i], x0, y0, x1, y1):
-                gal_center=w.wcs_world2pix(gal_ra[i], gal_dec[i], 0, 0, 0)
-                self.hosts.append(Host(gal_ra[i],gal_dec[i],gal_center[0],gal_center[1]))
+                gal_center = w.wcs_world2pix(gal_ra[i], gal_dec[i], 0, 0, 0)
+                self.hosts.append(Host(gal_ra[i], gal_dec[i], gal_center[0], gal_center[1], len(self.hosts)))
                 print(gal_ra[i], gal_dec[i])
 
-    def process(self):
+    
+
+    def fit(self):
+
+        for ins in self.bdsf_img.islands:
+            # fitting ellipses to island
+            self.param_tmp = self._fit_ellipse(ins.border[0],ins.border[1])
+            if len(self.param_tmp) != 0:
+                self.param = self._cart_to_pol(self.param_tmp)
+
+                if self.param != -111:
+                    el = Ellipse(self.param, ins.island_id)
+                    self.ellipse_list.append(el)
         """
-        Function to process image in bdsf and return the processed
-        image with islands and other information
-        """
-        #self.bdsf_img = bdsf.process_image(self.infile)
-       
-       
         if self.bdsf_img.resid_gaus_arr is None:
             low = 1.1*abs(self.bdsf_img.min_value)
         else:
             low = np.max([1.1*abs(self.bdsf_img.min_value),1.1*abs(np.nanmin(self.bdsf_img.resid_gaus_arr))])
-
-
-
-
 
         im=np.log10(self.bdsf_img.ch0_arr + low)
         plt.imshow(im,  cmap="gray", interpolation='nearest')
@@ -120,15 +163,13 @@ class Find_sources:
         for h in self.hosts:
             print(h.center_ra, h.center_dec, h.center_x, h.center_y)
             plt.scatter(h.center_y,h.center_x, s=6)
-        """
         for ins in self.bdsf_img.islands:
             #fitting ellipses to island
             self.param_tmp=self.fit_ellipse(ins.border[0],ins.border[1])
             if len(self.param_tmp) != 0:
                 self.param = self.cart_to_pol(self.param_tmp)
-                
+
                 if self.param!=-111 :
-                   
                     x0, y0, ap, bp, e, phi = self.param
                     ra = 0.0
                     if  ap>=bp:
@@ -141,18 +182,25 @@ class Find_sources:
                         #plt.scatter(self.param[1],self.param[0],s=1)
                         #plt.scatter(yt,xt,s=1)
         """
-        plt.show()
+        # plt.show()
 
     def plot(self):
-        plt.imshow(self.bdsf_img.image_arr[0][0], origin="lower")
-        yt,xt=self.get_ellipse_pts(self.param)
-        plt.scatter(xt,yt)
-        #for ins in self.bdsf_img.islands:
-        #    plt.scatter(ins.border[1], ins.border[0])
+        if self.bdsf_img.resid_gaus_arr is None:
+            low = 1.1*abs(self.bdsf_img.min_value)
+        else:
+            low = np.max([1.1*abs(self.bdsf_img.min_value), 1.1*abs(np.nanmin(self.bdsf_img.resid_gaus_arr))])
+
+        im = np.log10(self.bdsf_img.ch0_arr + low)
+        plt.imshow(im,  cmap="gray", interpolation='nearest')
+        for e in self.hosts[1].ellipse_list:
+            xt, yt = self.get_ellipse_pts([e.x0, e.y0, e.ap, e.bp, e.e, e.phi])
+            plt.scatter(yt, xt)
+        
+        plt.scatter(self.hosts[1].center_y, self.hosts[1].center_x, s=6)
         plt.show()
 
-    #code credit: https://scipython.com/blog/direct-linear-least-squares-fitting-of-an-ellipse/
-    def fit_ellipse(self,x, y):
+    # code credit: https://scipython.com/blog/direct-linear-least-squares-fitting-of-an-ellipse/
+    def _fit_ellipse(self, x, y):
         """
         Fit the coefficients a,b,c,d,e,f, representing an ellipse described by
         the formula F(x,y) = ax^2 + bxy + cy^2 + dx + ey + f = 0 to the provided
@@ -176,8 +224,7 @@ class Find_sources:
         ak = eigvec[:, np.nonzero(con > 0)[0]]
         return np.concatenate((ak, T @ ak)).ravel()
 
-
-    def cart_to_pol(self,coeffs):
+    def _cart_to_pol(self, coeffs):
         """
 
         Convert the cartesian conic coefficients, (a, b, c, d, e, f), to the
@@ -201,7 +248,7 @@ class Find_sources:
 
         den = b**2 - a*c
         if den > 0:
-            #raise ValueError('coeffs do not represent an ellipse: b^2 - 4ac must'
+            # raise ValueError('coeffs do not represent an ellipse: b^2 - 4ac must'
             #                ' be negative!')
 
             return -111
@@ -237,16 +284,15 @@ class Find_sources:
         if not width_gt_height:
             # Ensure that phi is the angle to rotate to the semi-major axis.
             phi += np.pi/2
-        
+
         if isinstance(phi, complex):
-            phi=phi.real % np.pi
+            phi = phi.real % np.pi
         else:
             phi = phi % np.pi
 
         return x0, y0, ap, bp, e, phi
 
-
-    def get_ellipse_pts(self,params, npts=10, tmin=0, tmax=2*np.pi):
+    def get_ellipse_pts(self, params, npts=10, tmin=0, tmax=2*np.pi):
         """
         Return npts points on the ellipse described by the params = x0, y0, ap,
         bp, e, phi for values of the parametric variable t between tmin and tmax.
@@ -299,7 +345,7 @@ class ImageFile:
                 The delimiter is used to separate the values specified in the input file
         """
 
-        #unpacking the img and rms file paths
+        # unpacking the img and rms file paths
         self.imgfiles, self.rmsfiles=np.loadtxt(infile,unpack=True,dtype=str,delimiter=delim)
 
 
@@ -325,8 +371,7 @@ class ImageFile:
     #    #assigning inputs 
     #    self.imgfiles=imgfiles
     #    self.rmsfiles=rmsfiles
-    
-    
+
     def init_images(self):
         """
         Creates objects for image class, assigns image, rms file and reads 
