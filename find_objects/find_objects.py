@@ -9,7 +9,7 @@ import numpy as np
 import math
 import time
 import os
-
+from astropy.coordinates import SkyCoord
 from . import image as image
 # import image as image
 
@@ -49,10 +49,24 @@ class Ellipse:
     """
     is_assigned = False
     host_id = None
+    center_ra = None
+    center_dec = None
+    sky_coord = None
 
     def __init__(self, param=None, island_id=None):
         self. x0, self.y0, self.ap, self.bp, self.e, self.phi = param
         self.island_id = island_id
+
+    def compute_ra_dec(self, w):
+        if isinstance(self.x0, complex):
+            self.sky_coord = w.pixel_to_world(self.x0.real, self.y0.real, 0, 0)[0]
+        else:
+            self.sky_coord = w.pixel_to_world(self.x0, self.y0, 0, 0)[0]
+        if self.sky_coord != 0:
+            self.center_ra = self.sky_coord.ra.value
+            self.center_dec = self.sky_coord.dec.value
+        else:
+            print("Error computing boundries\n Check the WCS of input image")
 
 
 class Find_sources:
@@ -63,6 +77,16 @@ class Find_sources:
         self.param_temp = None
         self.hosts = []
         self.ellipse_list = []
+        self.w = None
+
+    def _compute_distance(self, x1, y1, c):
+        """
+            Computes celestial distance between two sky points and
+            returns the distance in arcmin
+        """
+        c1 = SkyCoord(x1, y1, unit="deg")
+        d = c.separation(c1)
+        return d.arcmin
 
     def search(self):
         """
@@ -73,7 +97,7 @@ class Find_sources:
         for h in self.hosts:
             for e in self.ellipse_list:
                 if not e.is_assigned:
-                    if math.dist([h.center_x, h.center_y], [e.x0, e.y0]) < 70:
+                    if self._compute_distance(h.center_ra, h.center_dec, e.sky_coord) < 10:
                         h.ellipse_list.append(e)
                         e.is_assigned = True
 
@@ -83,6 +107,8 @@ class Find_sources:
         image with islands and other information
         """
         self.bdsf_img = bdsf.process_image(self.infile)
+        # this can be moved to a method
+        self.w = WCS(self.bdsf_img.header)
 
     def _check_image_boundry(self, x, y, x0, y0, x1, y1):
         """
@@ -109,11 +135,10 @@ class Find_sources:
         |                   |
         |                   |
         |                   |
-        (0, 0)--------------(NAXIS1, 0) 
+        (0, 0)--------------(NAXIS1, 0)
       """
 
-        w = WCS(self.bdsf_img.header)
-        tmp = w.pixel_to_world(0, 0, 0, 0)
+        tmp = self.w.pixel_to_world(0, 0, 0, 0)
         # last two arguments are dummy and not used anywhere in the process
         if tmp != 0:
             x0 = tmp[0].ra.value
@@ -121,7 +146,7 @@ class Find_sources:
         else:
             print("Error computing boundries\n Check the WCS of input image")
 
-        tmp = w.pixel_to_world(self.bdsf_img.header["NAXIS1"], self.bdsf_img.header["NAXIS2"], 0, 0)
+        tmp = self.w.pixel_to_world(self.bdsf_img.header["NAXIS1"], self.bdsf_img.header["NAXIS2"], 0, 0)
         # last two arguments are dummy and not used anywhere in the process
         if tmp != 0:
             x1 = tmp[0].ra.value
@@ -134,22 +159,21 @@ class Find_sources:
         for i in np.arange(0, len(gal_ra)):
             # this can be done in a smarter way
             if self._check_image_boundry(gal_ra[i], gal_dec[i], x0, y0, x1, y1):
-                gal_center = w.wcs_world2pix(gal_ra[i], gal_dec[i], 0, 0, 0)
+                gal_center = self.w.wcs_world2pix(gal_ra[i], gal_dec[i], 0, 0, 0)
                 self.hosts.append(Host(gal_ra[i], gal_dec[i], gal_center[0], gal_center[1], len(self.hosts)))
                 print(gal_ra[i], gal_dec[i])
-
-    
 
     def fit(self):
 
         for ins in self.bdsf_img.islands:
             # fitting ellipses to island
-            self.param_tmp = self._fit_ellipse(ins.border[0],ins.border[1])
+            self.param_tmp = self._fit_ellipse(ins.border[0], ins.border[1])
             if len(self.param_tmp) != 0:
                 self.param = self._cart_to_pol(self.param_tmp)
 
                 if self.param != -111:
                     el = Ellipse(self.param, ins.island_id)
+                    el.compute_ra_dec(self.w)
                     self.ellipse_list.append(el)
         """
         if self.bdsf_img.resid_gaus_arr is None:
@@ -192,11 +216,11 @@ class Find_sources:
 
         im = np.log10(self.bdsf_img.ch0_arr + low)
         plt.imshow(im,  cmap="gray", interpolation='nearest')
-        for e in self.hosts[1].ellipse_list:
-            xt, yt = self.get_ellipse_pts([e.x0, e.y0, e.ap, e.bp, e.e, e.phi])
-            plt.scatter(yt, xt)
-        
-        plt.scatter(self.hosts[1].center_y, self.hosts[1].center_x, s=6)
+        for h in self.hosts:
+            for e in h.ellipse_list:
+                xt, yt = self.get_ellipse_pts([e.x0, e.y0, e.ap, e.bp, e.e, e.phi])
+                plt.scatter(yt, xt)
+            plt.scatter(h.center_y, h.center_x, s=6)
         plt.show()
 
     # code credit: https://scipython.com/blog/direct-linear-least-squares-fitting-of-an-ellipse/
